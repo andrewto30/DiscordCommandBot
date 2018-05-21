@@ -1,0 +1,234 @@
+import discord
+import logging
+from config import *
+from utils import *
+
+logger = logging.getLogger('discord')
+logger.setLevel(logging.ERROR)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+client = discord.Client()
+
+message_to_slack("EVE DISCORD BOT STARTED")
+
+
+@client.event
+async def on_ready():
+    print('{} Logged In!'.format(client.user.name))
+
+
+@client.event
+async def on_message(message):
+    if message.content.upper().startswith('!STOCKX '):
+        headers = {
+            'User-Agent': user_agent
+        }
+        params = {
+            'x-algolia-agent': 'Algolia for vanilla JavaScript 3.22.1',
+            'x-algolia-api-key': '6bfb5abee4dcd8cea8f0ca1ca085c2b3',
+            'x-algolia-application-id': 'XW7SBCT9V6',
+        }
+        data = {
+            "params": "query={}&hitsPerPage=20&facets=*".format(message.content.split('!stockx ')[1])
+        }
+        response = requests.post(url=api_url, headers=headers, params=params, json=data)
+        output = json.loads(response.text)
+        deadstock_sold = output['hits'][0]['deadstock_sold']
+        highest_ask = output['facets_stats']['lowest_ask']['max']
+        highest_bid = output['hits'][0]['highest_bid']
+        image = output['hits'][0]['media']['imageUrl']
+        last_sale = output['hits'][0]['last_sale']
+        lowest_ask = output['hits'][0]['lowest_ask']
+        name = output['hits'][0]['name']
+        # retail = output['hits'][0]['traits'][2]['value']
+        sales_last_72 = output['hits'][0]['sales_last_72']
+        # style = output['hits'][0]['style_id']
+        url = 'https://stockx.com/' + output['hits'][0]['url']
+        embed = discord.Embed(color=4500277)
+        embed.set_thumbnail(url=image)
+        embed.add_field(name="Product Name", value="[{}]({})".format(name, url), inline=False)
+        # embed.add_field(name="Product Style ID", value="{}".format(style), inline=False)
+        # embed.add_field(name="Retail", value="${}".format(retail), inline=False)
+        embed.add_field(name="Last Sale", value="${}".format(last_sale), inline=True)
+        embed.add_field(name="Highest Bid", value="${}".format(highest_bid), inline=True)
+        embed.add_field(name="Lowest Ask", value="${}".format(lowest_ask), inline=True)
+        embed.add_field(name="Highest Ask", value="${}".format(highest_ask), inline=True)
+        embed.add_field(name="Units Sold in Last 72 Hrs", value="{}".format(sales_last_72), inline=True)
+        embed.add_field(name="Total Units Sold", value="{}".format(deadstock_sold), inline=True)
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith('!PRICE '):
+        coin = message.content.split('!price ')[1]
+        embed = discord.Embed(color=4500277)
+        embed.add_field(name="Currency ", value="{}".format(coin.upper()), inline=True)
+        embed.add_field(name="USD current price ", value="${}".format(get_price(coin)), inline=True)
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith('!HELP'):
+        embed = discord.Embed(
+            title="Commands",
+            color=0x1e90ff,
+            description="!faq: `Link for Eve AIO FAQ`\n"
+                        "!eveaiomanual: `Link for Eve AIO user manual`\n"
+                        "!reset: `Link to reset license key` \n"
+                        "!onecheckout: `One checkout per profile info`\n"
+                        "!sizeinfo: `Sizing info`\n"
+                        "!keywords: `Keyword info` \n"
+                        "!pricecheck: `price check info`\n"
+                        "!retrydelay: `Retry delay info`\n"
+                        "!checkoutdelay: `Supreme checkout delay`\n"
+                        "!starttime: `Start time for live drops`\n"
+                        "!harvester: `Harvester info`\n"
+                        "!captcha: `Captcha info`\n"
+                        "!notifications: `Slack/Discord notification setup`\n"
+                        "!proxytester: `Eve AIO proxy tester info`\n"
+                        "!stockx <keyword> : find item in stock X and get infos about it`\n\n"
+                        "!price < btc | eth | bch | ltc > : `Get curruent USD price of crypto coin`\n"
+
+        )
+        await client.send_message(message.channel, embed=embed)
+        
+    elif message.content.upper().startswith("!FAQ"):
+        embed = discord.Embed(
+            title="FAQ",
+            color=0xfafc00,
+            description="https://eve-robotics.com/knowledge-base/faq/"
+        )
+        await client.send_message(message.channel, embed=embed)
+    
+    elif message.content.upper().startswith("!EVEAIOMANUAL"):
+        embed = discord.Embed(
+            title="Eve AIO Manual",
+            color=0xfafc00,
+            description="http://eve-robotics.com/release/EveAIOUserManual.pdf"
+        )
+        await client.send_message(message.channel, embed=embed)
+    elif message.content.upper().startswith("!RESET"):
+        embed = discord.Embed(
+            title="Reset Info",
+            color=0xfafc00,
+            description="http://eve-robotics.com/key-reset/ \n"
+                        "We do not support Discord resets"
+        )
+        await client.send_message(message.channel, embed=embed)
+    elif message.content.upper().startswith("!ONECHECKOUT"):
+        embed = discord.Embed(
+            title="One Checkout Per Profile Info",
+            color=0xfafc00,
+            description="See #botsetup this is extremely important to understand"
+        )
+        await client.send_message(message.channel, embed=embed)
+    elif message.content.upper().startswith("!KEYWORDS"):
+        embed = discord.Embed(
+            title="Keywords Info",
+            color=0xfafc00,
+            description="Eve's keyword finder is case insensitive \n"
+                        "Press `enter` to tab to a new line for a new set of keywords \n"
+                        "Eve will search each line for a match and if nothing matches will move on to the next set of words \n"
+                        "Check #botsetup for examples"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!CHECKOUTDELAY"):
+        embed = discord.Embed(
+            title="Checkout Delay",
+            color=0xfafc00,
+            description="Checkout delay is only needed for Supreme \n"
+                        "2000 ms is standard, go under at your own risk \n"
+                        "There has been success with lower and higher delays!"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!STARTTIME"):
+        embed = discord.Embed(
+            title="Start Time for Live Drops",
+            color=0xfafc00,
+            description="Shopify: `If 1:1 task:proxy ratio start 30 seconds before` \n"
+                        "Supreme: `If 1:1 task:proxy ratio start 10-20 seconds before` \n"
+                        "Footsites: `If 1:1 task:proxy ratio start 5-15 minutes before`"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!HARVESTER"):
+        embed = discord.Embed(
+            title="Captcha Harvester",
+            color=0xfafc00,
+            description="Harvesters are third party companies that pre-solve captchas \n"
+                        "Harvester does not work for Shopify or Supreme \n"
+                        "Supreme checks timestamps on captcha tokens \n"
+                        "Check Eve AIO user manual for more info"
+
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!CAPTCHA"):
+        embed = discord.Embed(
+            title="Captcha Info",
+            color=0xfafc00,
+            description="Manual solver is your best friend \n"
+                        "Google Chrome is required for manual solver \n"
+                        "Autoclick will click one-click captchas for you \n"
+                        "Harvester is useless for many sites"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!SIZEINFO"):
+        embed = discord.Embed(
+            title="Size Info",
+            color=0xfafc00,
+            description="Random size selects whatever size available(does not affect bot speed) \n"
+                        "Use the sizing format the website uses ex.)If Supreme uses Medium use Medium \n"
+                        "To select sizes within a certain range use this format `9#9.5#10`"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!PRICECHECK"):
+        embed = discord.Embed(
+            title="Price Check Info",
+            color=0xfafc00,
+            description="Price Check makes sure the item price is within a certain price range \n"
+                        "Does not affect bot checkout speed"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!NOTIFICATIONS"):
+        embed = discord.Embed(
+            title="Notification Setup",
+            color=0xfafc00,
+            description="Check the Discord channel #botsetup for an in depth tutorial"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!RETRYDELAY"):
+        embed = discord.Embed(
+            title="Retry Delay Info",
+            color=0xfafc00,
+            description="Retry delay is dependant on task:proxy ratio \n"
+                        "If your ratio is 1:1 2000 ms is standard"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+    elif message.content.upper().startswith("!PROXYTESTER"):
+        embed = discord.Embed(
+            title="Proxy Tester Info",
+            color=0xfafc00,
+            description="To import proxies, copy/paste proxies into notepad and import with button at top of proxy list screen \n"
+                        "To test if a proxy works use the Google Chrome button`(make sure Google Chrome is installed)` \n"
+                        "Eve AIO's proxy tester can be inaccurate at times \n"
+                        "For timeout put 15 seconds"
+        )
+        
+        await client.send_message(message.channel, embed=embed)
+
+
+client.run(token)
